@@ -315,8 +315,20 @@ pub struct Connection(asynk::Connection);
 /// # }
 /// ```
 pub fn connect(nats_url: &str) -> io::Result<Connection> {
+        CONN_COUNT.fetch_add(1, Ordering::SeqCst);
+        println!("new conn! count: {:?}", CONN_COUNT);
     Options::new().connect(nats_url)
 }
+use core::sync::atomic::{AtomicIsize, Ordering};
+static CONN_COUNT: AtomicIsize = AtomicIsize::new(0);
+
+impl Drop for Connection {
+    fn drop(&mut self) {
+        CONN_COUNT.fetch_sub(1, Ordering::SeqCst);
+        println!("dropped conn! count: {:?}", CONN_COUNT);
+    }
+}
+
 
 /// A `Message` that has been published to a NATS `Subject`.
 #[derive(Debug, Clone)]

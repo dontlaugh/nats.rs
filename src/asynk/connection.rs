@@ -16,6 +16,18 @@ pub struct Connection {
     client: Client,
 }
 
+use core::sync::atomic::{AtomicIsize, Ordering};
+static CONN_COUNT: AtomicIsize = AtomicIsize::new(0);
+
+impl Drop for Connection {
+    fn drop(&mut self) {
+        CONN_COUNT.fetch_sub(1, Ordering::SeqCst);
+        println!("dropped asynk conn! count: {:?}", CONN_COUNT);
+    }
+}
+
+
+
 impl Connection {
     /// Connects on a URL with the given options.
     pub(crate) async fn connect_with_options(
@@ -24,6 +36,8 @@ impl Connection {
     ) -> io::Result<Connection> {
         let client = Client::connect(url, options).await?;
         client.flush().await?;
+        CONN_COUNT.fetch_add(1, Ordering::SeqCst);
+        println!("new asynk conn! count: {:?}", CONN_COUNT);
         Ok(Connection { client })
     }
 
